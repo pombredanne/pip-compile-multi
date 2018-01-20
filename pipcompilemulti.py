@@ -18,6 +18,15 @@ import logging
 import itertools
 import subprocess
 from fnmatch import fnmatch
+from typing import (
+    IO,
+    List,
+    Iterable,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
 import click
 from toposort import toposort_flatten
@@ -164,10 +173,13 @@ class Environment(object):
 
     IN_EXT = '.in'
     OUT_EXT = '.txt'
-    RE_REF = re.compile('^(?:-r|--requirement)\s*(?P<path>\S+).*$')
+    RE_REF = re.compile(r'^(?:-r|--requirement)\s*(?P<path>\S+).*$')
     PY3_IGNORE = set(['future', 'futures'])  # future[s] are obsolete in python3
 
-    def __init__(self, name, ignore=None, allow_post=False):
+    def __init__(self,
+                 name: str,
+                 ignore: Optional[Iterable[str]] = None,
+                 allow_post: bool = False) -> None:
         """
         name - name of the environment, e.g. base, test
         ignore - set of package names to omit in output
@@ -177,7 +189,7 @@ class Environment(object):
         if sys.version_info[0] >= 3:
             self.ignore.update(self.PY3_IGNORE)
         self.allow_post = allow_post
-        self.packages = set()
+        self.packages = set()  # type: Set
 
     def create_lockfile(self):
         """
@@ -201,7 +213,7 @@ class Environment(object):
             raise RuntimeError("Failed to pip-compile {0}".format(self.infile))
 
     @classmethod
-    def parse_references(cls, filename):
+    def parse_references(cls, filename: str) -> Set[str]:
         """
         Read filename line by line searching for pattern:
 
@@ -222,17 +234,19 @@ class Environment(object):
         return references
 
     @property
-    def infile(self):
+    def infile(self) -> str:
+        """Input file name"""
         return os.path.join('requirements',
                             '{0}{1}'.format(self.name, self.IN_EXT))
 
     @property
-    def outfile(self):
+    def outfile(self) -> str:
+        """Output file name"""
         return os.path.join('requirements',
                             '{0}{1}'.format(self.name, self.OUT_EXT))
 
     @property
-    def pin_command(self):
+    def pin_command(self) -> List[str]:
         """Compose pip-compile shell command"""
         return [
             'pip-compile',
@@ -260,7 +274,7 @@ class Environment(object):
                 if line is not None
             ])
 
-    def fix_pin(self, line):
+    def fix_pin(self, line: str) -> Union[str, None]:
         """
         Fix dependency by removing post-releases from versions
         and loosing constraints on internal packages.
@@ -279,7 +293,7 @@ class Environment(object):
             return dep.serialize()
         return line.strip()
 
-    def add_references(self, other_names):
+    def add_references(self, other_names: List[str]) -> None:
         """Add references to other_names in outfile"""
         if not other_names:
             # Skip on empty list
@@ -294,7 +308,7 @@ class Environment(object):
             fp.writelines(body)
 
     @staticmethod
-    def split_header(fp):
+    def split_header(fp: IO) -> Tuple[List[str], List[str]]:
         """
         Read file pointer and return pair of lines lists:
         first - header, second - the rest.
@@ -310,7 +324,7 @@ class Environment(object):
             lines.append(line)
         return lines[:body_start], lines[body_start:]
 
-    def replace_header(self, header_text):
+    def replace_header(self, header_text: str) -> None:
         """Replace pip-compile header with custom text"""
         with open(self.outfile, 'rt') as fp:
             _, body = self.split_header(fp)
@@ -338,17 +352,17 @@ class Dependency(object):
         r'^-e '
     )
 
-    def __init__(self, line):
-        m = self.RE_DEPENDENCY.match(line)
-        if m:
+    def __init__(self, line: str) -> None:
+        matchobj = self.RE_DEPENDENCY.match(line)
+        if matchobj:
             self.valid = True
-            self.package = m.group('package')
-            self.version = m.group('version').strip()
-            self.comment = (m.group('comment') or '').strip()
+            self.package = matchobj.group('package')
+            self.version = matchobj.group('version').strip()
+            self.comment = (matchobj.group('comment') or '').strip()
         else:
             self.valid = False
 
-    def serialize(self):
+    def serialize(self) -> str:
         """
         Render dependency back in string using:
             ~= if package is internal
@@ -366,7 +380,7 @@ class Dependency(object):
         ).rstrip()
 
     @classmethod
-    def without_editable(cls, line):
+    def without_editable(cls, line: str) -> str:
         """
         Remove the editable flag.
         It's there because pip-compile can't yet do without it
@@ -376,14 +390,15 @@ class Dependency(object):
         return cls.RE_EDITABLE_FLAG.sub('', line)
 
     @property
-    def is_compatible(self):
+    def is_compatible(self) -> bool:
         """Check if package name is matched by compatible_patterns"""
         for pattern in OPTIONS['compatible_patterns']:
             if fnmatch(self.package.lower(), pattern):
                 return True
         return False
 
-    def drop_post(self):
+    def drop_post(self) -> None:
+        """Remove .postXXX from version"""
         post_index = self.version.find('.post')
         if post_index >= 0:
             self.version = self.version[:post_index]
