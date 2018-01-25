@@ -6,6 +6,12 @@ History
 
 * Fixed comment justification
 
+1.1.7 (2017-01-25)
+------------------
+
+* Added ``--generate-hashes`` option
+* Fixed comment justification
+
 1.1.6 (2017-01-19)
 ------------------
 
