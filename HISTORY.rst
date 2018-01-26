@@ -1,15 +1,14 @@
 History
 =======
 
-1.1.7 (2017-01-25)
-------------------
-
-* Fixed comment justification
-
-1.1.7 (2017-01-25)
+1.1.8 (2017-01-25)
 ------------------
 
 * Added ``--generate-hashes`` option
+
+1.1.7 (2017-01-25)
+------------------
+
 * Fixed comment justification
 
 1.1.6 (2017-01-19)
