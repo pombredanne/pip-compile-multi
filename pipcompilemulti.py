@@ -104,6 +104,7 @@ def recompile():
         base_header_text = DEFAULT_HEADER
     for conf in env_confs:
         rrefs = recursive_refs(env_confs, conf['name'])
+        add_hashes = conf['name'] in OPTIONS['add_hashes']
         env = Environment(
             name=conf['name'],
             ignore=merged_packages(pinned_packages, rrefs),
@@ -158,6 +159,34 @@ def recursive_refs(envs, name):
         env['name']: set(env['refs'])
         for env in envs
     }
+    refs = refs_by_name[name]
+    if refs:
+        indirect_refs = set(itertools.chain.from_iterable([
+            recursive_refs(envs, ref)
+            for ref in refs
+        ]))
+    else:
+        indirect_refs = set()
+    return set.union(refs, indirect_refs)
+
+
+def linked_by_refs(envs, name):
+    """
+    Return set of all envs referencing or referenced by given name
+
+    >>> local_refs = sorted(linked_by_refs([
+    ...     {'name': 'base', 'refs': []},
+    ...     {'name': 'test', 'refs': ['base']},
+    ...     {'name': 'local', 'refs': ['test']},
+    ... ], 'test'))
+    >>> local_refs == ['base', 'local', 'test']
+    True
+    """
+    links = {}
+    for env in envs:
+        links.setdefault(env['name'], set()).update(env['refs'])
+        for ref in env['refs']:
+            links.setdefault(ref, set()).update(env['name'])
     refs = refs_by_name[name]
     if refs:
         indirect_refs = set(itertools.chain.from_iterable([
